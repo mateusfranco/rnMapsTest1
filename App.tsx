@@ -12,7 +12,7 @@ const App = () => {
   const [data, setData] = useState<any>();
 
   const isNearCordinate = (diff1: number, diff2: number) =>
-    diff1 < 0.0001 && diff2 < 0.0001;
+    diff1 < 0.00015 && diff2 < 0.00015;
 
   const cordDiff = (pos1: Position, pos2: Position) => {
     let lonDiff = pos1[0] - pos2[0];
@@ -23,7 +23,6 @@ const App = () => {
 
     if (isNearCordinate(lonDiff, latDiff)) {
       // menor que 11.1 metros;
-      console.log(pos1, pos2);
       return true;
     }
     return false;
@@ -34,13 +33,11 @@ const App = () => {
     return a;
   };
 
-  const cleanBeforeRoutePos = (routeIndex: number) => {
+  const cleanBeforeRoutePos = (routeIndex: number, currentPos: Position) => {
     setData((data1: any) => {
-      const newRoute = data1?.coordinates.slice(routeIndex);
+      const newRoute = data1?.coordinates?.slice(routeIndex);
 
-      console.log(newRoute);
-
-      return {...data1, coordinates: newRoute.reverse()};
+      return {type: data1.type, coordinates: [currentPos, ...newRoute]};
     });
   };
 
@@ -50,8 +47,12 @@ const App = () => {
         'https://api.mapbox.com/optimized-trips/v1/mapbox/driving-traffic/-37.9821,-4.92824;-37.9679,-4.93217?geometries=geojson&language=en&overview=full&steps=true&access_token=pk.eyJ1IjoibWF0ZXVzZnMzMzMiLCJhIjoiY2xtemF5aTV4MWlhMzJ2cXdxZTViYm4wZyJ9.oFPvn7wSz_AceZlh04KUPA',
       )
       .then(resp => {
+        console.log(resp.data.trips[0].geometry.coordinates);
         setData({
-          coordinates: resp.data.trips[0].geometry.coordinates,
+          coordinates: resp.data.trips[0].geometry.coordinates.slice(
+            0,
+            resp.data.trips[0].geometry.coordinates.length / 2,
+          ),
           type: 'LineString',
         });
       });
@@ -65,17 +66,23 @@ const App = () => {
             <Mapbox.MapView
               style={styles.map}
               compassEnabled
-              compassViewPosition={2}>
+              compassViewPosition={1}>
               <Mapbox.Camera
+                // ref={camera}
                 zoomLevel={2}
                 followUserLocation
-                followZoomLevel={15}
-                heading={21}
+                followZoomLevel={18}
+                heading={90}
+                followPitch={60}
+                followHeading={90}
+                animationMode="flyTo"
+                animationDuration={2000}
+                followUserMode={Mapbox.UserTrackingMode.FollowWithHeading}
               />
               <Mapbox.ShapeSource
                 id="source1"
+                buffer={512}
                 lineMetrics={true}
-                buffer={400}
                 shape={data}>
                 <Mapbox.LineLayer id="layer1" style={styles.lineLayer} />
               </Mapbox.ShapeSource>
@@ -92,9 +99,11 @@ const App = () => {
                   if (isNearIndex > 0) {
                     console.log('findIndex', isNearIndex);
                     console.log('OPA');
-                    cleanBeforeRoutePos(isNearIndex);
+                    cleanBeforeRoutePos(isNearIndex, userPosition);
                   }
                 }}
+                minDisplacement={1}
+                androidRenderMode="gps"
                 visible
               />
             </Mapbox.MapView>
@@ -125,22 +134,5 @@ const styles = StyleSheet.create({
     lineCap: 'round',
     lineJoin: 'round',
     lineWidth: 3,
-    lineGradient: [
-      'interpolate',
-      ['linear'],
-      ['line-progress'],
-      0,
-      'blue',
-      0.1,
-      'royalblue',
-      0.3,
-      'cyan',
-      0.5,
-      'lime',
-      0.7,
-      'yellow',
-      1,
-      'red',
-    ],
   },
 });
